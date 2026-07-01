@@ -1,0 +1,20 @@
+{
+  "name": "pampa-input-control",
+  "version": "0.1.0",
+  "description": "Nucleo teleop de Pampa: protocolo ControlPacket + transporte ESP-NOW + ruteo de botones/encoder. Fuente unica de verdad del enlace mando<->robot, compartida por el mando (PampaController) y los robots (PampaV2/V3) para garantizar compatibilidad de protocolo por construccion.",
+  "keywords": ["esp-now", "teleop", "gamepad", "robot", "pampa", "control"],
+  "authors": [
+    { "name": "EmmanuelJulio", "email": "emmajulio.ej@gmail.com" }
+  ],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "license": "MIT",
+  "frameworks": "*",
+  "platforms": "*",
+  "headers": ["InputControlModule.h", "ControlProtocol.h"],
+  "export": {
+    "exclude": [".pio", ".vscode"]
+  }
+}
