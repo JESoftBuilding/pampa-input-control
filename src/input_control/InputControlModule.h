@@ -13,6 +13,8 @@ struct ModuleConfig {
     const ButtonBinding* global;        // tabla global de botones (host)
     uint8_t              global_count;
     uint8_t              nav_click_effect;  // effect_id al click del encoder (0 = ninguno)
+    uint8_t              robot_id;          // id de ESTE robot; ignora paquetes con otro
+                                            // target (ROBOT_ID_ALL siempre pasa)
 };
 
 // Fachada end-to-end: dueña del transporte, decodifica el protocolo, despacha y expone
@@ -47,6 +49,7 @@ private:
     IRawInbound*     raw_ = nullptr;
     ControlPacket    last_{};
     bool             seen_ = false;
+    uint8_t          robot_id_ = ROBOT_ID_ALL;  // id de este robot (filtro de target)
 };
 
 } // namespace input_control

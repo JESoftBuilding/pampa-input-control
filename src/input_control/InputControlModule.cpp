@@ -4,7 +4,8 @@ namespace input_control {
 
 InputControlModule::InputControlModule(ILinkTransport& transport, IEffectSink& sink, const ModuleConfig& cfg)
     : transport_(transport), sink_(sink),
-      router_(cfg.global, cfg.global_count, cfg.nav_click_effect) {}
+      router_(cfg.global, cfg.global_count, cfg.nav_click_effect),
+      robot_id_(cfg.robot_id) {}
 
 void InputControlModule::begin(uint8_t channel) { transport_.begin(channel); }
 
@@ -16,6 +17,7 @@ void InputControlModule::tick() {
 
     ControlPacket pkt;
     if (decodeControl(data, len, pkt)) {
+        if (!isForRobot(pkt, robot_id_)) return;  // no es para este robot → ignorar
         last_ = pkt; seen_ = true;
         const NavInput nav = extractNav(pkt);
         const uint8_t effect = router_.resolve(pkt.buttons, nav, pkt.seq, active_);
