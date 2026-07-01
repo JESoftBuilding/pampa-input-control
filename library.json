@@ -13,7 +13,7 @@
   "license": "MIT",
   "frameworks": "*",
   "platforms": "*",
-  "headers": ["InputControlModule.h", "ControlProtocol.h"],
+  "headers": ["input_control/InputControlModule.h", "input_control/ControlProtocol.h"],
   "export": {
     "exclude": [".pio", ".vscode"]
   }
