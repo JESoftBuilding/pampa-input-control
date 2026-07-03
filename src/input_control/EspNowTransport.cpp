@@ -35,11 +35,14 @@ void EspNowTransport::onRecvStatic(const uint8_t* mac, const uint8_t* data, int 
 
 void EspNowTransport::onRecv(const uint8_t* data, int len) {
     if (len <= 0 || len > kMaxFrame) return;
-    // Copia manual: rx_buf_ es volatile, memcpy no acepta volatile.
-    for (int i = 0; i < len; ++i) rx_buf_[i] = data[i];
-    rx_len_    = static_cast<uint8_t>(len);
+    const uint8_t h    = head_;
+    const uint8_t next = (uint8_t)((h + 1) % kRing);
+    if (next == tail_) return;          // ring lleno → descartar (raro; el loop drena rápido).
+                                        // SPSC: el productor NUNCA toca tail_.
+    for (int i = 0; i < len; ++i) rx_ring_[h][i] = data[i];
+    rx_lens_[h] = static_cast<uint8_t>(len);
+    head_       = next;                 // publica el frame DESPUÉS de copiarlo
     last_rx_ms_ = millis();
-    has_new_   = true;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,12 +66,11 @@ void EspNowTransport::begin(uint8_t channel) {
 // receive() — devuelve true UNA SOLA VEZ por frame.
 // ---------------------------------------------------------------------------
 bool EspNowTransport::receive(const uint8_t*& data, uint8_t& len) {
-    if (!has_new_) return false;
-    noInterrupts();
-    uint8_t n = rx_len_;
-    for (uint8_t i = 0; i < n; ++i) consume_buf_[i] = rx_buf_[i];
-    has_new_ = false;
-    interrupts();
+    const uint8_t t = tail_;
+    if (t == head_) return false;       // vacío
+    const uint8_t n = rx_lens_[t];
+    for (uint8_t i = 0; i < n; ++i) consume_buf_[i] = rx_ring_[t][i];
+    tail_ = (uint8_t)((t + 1) % kRing); // libera el slot DESPUÉS de copiarlo
     data = consume_buf_;
     len  = n;
     return true;

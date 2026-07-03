@@ -43,12 +43,19 @@ private:
     void onRecv(const uint8_t* data, int len);
 
     static constexpr uint8_t kMaxFrame = 32;
+    // Ring SPSC (productor = callback WiFi, consumidor = receive() en el loop). Un solo slot
+    // NO alcanza: el mando emite ControlPacket a 50 Hz, y el ConfigPacket/ConfigRequest viaja
+    // en la misma ráfaga → con un slot el control pisa la config antes de que el loop la lea
+    // (config perdida → no se guarda). El ring absorbe la ráfaga; drena por-iteración del loop.
+    static constexpr uint8_t kRing = 8;
 
-    // Escritos por el callback (tarea WiFi, similar a ISR) → volatile.
-    volatile uint8_t  rx_buf_[kMaxFrame];
-    volatile uint8_t  rx_len_    = 0;
+    // Escritos por el callback (tarea WiFi). SPSC: el productor solo avanza head_, el consumidor
+    // solo avanza tail_ → índices uint8 atómicos, sin lock. Publica head_ DESPUÉS de copiar.
+    volatile uint8_t  rx_ring_[kRing][kMaxFrame];
+    volatile uint8_t  rx_lens_[kRing];
+    volatile uint8_t  head_ = 0;      // próxima posición a escribir (callback)
+    volatile uint8_t  tail_ = 0;      // próxima posición a leer (receive)
     volatile uint32_t last_rx_ms_ = 0;
-    volatile bool     has_new_   = false;
 
     // Buffer de consumo: escrito solo en receive() (tarea principal), no necesita volatile.
     uint8_t consume_buf_[kMaxFrame];
