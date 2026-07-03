@@ -42,7 +42,10 @@ private:
     static void onRecvStatic(const uint8_t* mac, const uint8_t* data, int len);
     void onRecv(const uint8_t* data, int len);
 
-    static constexpr uint8_t kMaxFrame = 32;
+    // OJO: debe cubrir el frame MÁS GRANDE que recibe el robot. El ConfigPacket mide 43 B
+    // (3 + 8*5) → con 32 se descartaba en onRecv (`len > kMaxFrame`) y la config NUNCA llegaba
+    // (el WRITE se perdía → no guardaba). ControlPacket=11B y ConfigRequest=3B sí entraban.
+    static constexpr uint8_t kMaxFrame = 64;   // ≥ sizeof(ConfigPacket)=43, con margen
     // Ring SPSC (productor = callback WiFi, consumidor = receive() en el loop). Un solo slot
     // NO alcanza: el mando emite ControlPacket a 50 Hz, y el ConfigPacket/ConfigRequest viaja
     // en la misma ráfaga → con un slot el control pisa la config antes de que el loop la lea
