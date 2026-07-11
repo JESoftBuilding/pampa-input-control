@@ -29,9 +29,11 @@ constexpr uint8_t ROBOT_ID_ALL = 0;
 // IDs canónicos de robot (nombre ↔ id) — FUENTE ÚNICA compartida por el mando y los robots.
 // El mando estampa el id elegido; cada robot se configura con el suyo.
 enum class RobotId : uint8_t {
-    All     = ROBOT_ID_ALL,   // 0 — broadcast
-    PampaV3 = 1,              // diferencial — coincide con catalog/Robots.h del mando + telemetría
-    PampaV2 = 2,              // holonómico
+    All       = ROBOT_ID_ALL,   // 0 — broadcast
+    PampaV3   = 1,              // diferencial — coincide con catalog/Robots.h del mando + telemetría
+    PampaV2   = 2,              // holonómico — placa DevKit (esp32doit-devkit-v1)
+    PampaV2S3 = 3,             // holonómico — placa Waveshare S3-Zero; mismo firmware, id propio
+                               // para que el mando direccione S3 y DevKit por separado.
 };
 
 // Paquete mando→robot, 50 Hz, 11 bytes packed.
