@@ -107,11 +107,42 @@ void test_empty_tick_noop() {
     TEST_ASSERT_EQUAL_INT8(0, mod.lx());
 }
 
+// ── Frescura dirigida (spec 2026-07-11 D1) ───────────────────────────────────────────
+// Solo los ControlPacket QUE ME APUNTAN refrescan targetedAgeMs; los ajenos no. Esta es la
+// señal "seleccionado" del LED (el transporte se refresca con cualquier frame del canal).
+void test_targeted_age_tracks_only_my_frames() {
+    ModuleConfig cfg{ nullptr, 0, 0, (uint8_t)RobotId::PampaV2 };
+    InputControlModule mod(*g_tx, *g_sink, cfg);
+
+    TEST_ASSERT_EQUAL_UINT32(UINT32_MAX, mod.targetedAgeMs(5000));   // nunca me apuntaron
+
+    g_tx->push(mk(10, 1, (uint8_t)RobotId::PampaV2));   // para mí
+    mod.tick(1000);
+    TEST_ASSERT_EQUAL_UINT32(0, mod.targetedAgeMs(1000));
+    TEST_ASSERT_TRUE(mod.isTargetedFresh(1200));                     // 200 ms de edad
+
+    g_tx->push(mk(99, 2, (uint8_t)RobotId::PampaV3));   // ajeno: NO refresca
+    mod.tick(2000);
+    TEST_ASSERT_EQUAL_UINT32(1000, mod.targetedAgeMs(2000));         // sigue anclado en t=1000
+    TEST_ASSERT_FALSE(mod.isTargetedFresh(2000));                    // 1000 ms > 300 default
+}
+
+// Broadcast (target 0) cuenta como dirigido a mí (isForRobot lo deja pasar).
+void test_targeted_age_accepts_broadcast() {
+    ModuleConfig cfg{ nullptr, 0, 0, (uint8_t)RobotId::PampaV2 };
+    InputControlModule mod(*g_tx, *g_sink, cfg);
+    g_tx->push(mk(10, 1, 0));                            // ROBOT_ID_ALL
+    mod.tick(500);
+    TEST_ASSERT_TRUE(mod.isTargetedFresh(600));
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_tick_drains_to_latest);
     RUN_TEST(test_release_reflects_immediately);
     RUN_TEST(test_foreign_frame_skipped_but_drains);
     RUN_TEST(test_empty_tick_noop);
+    RUN_TEST(test_targeted_age_tracks_only_my_frames);
+    RUN_TEST(test_targeted_age_accepts_broadcast);
     return UNITY_END();
 }

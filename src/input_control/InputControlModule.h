@@ -27,7 +27,9 @@ public:
     void setActiveStrategy(IButtonStrategy* s) { active_ = s; }
     void setRawInbound(IRawInbound* r)         { raw_ = r; }
 
-    void tick();                                  // procesa 1 mensaje inbound si llegó
+    // Drena el inbound. now_ms alimenta targetedAgeMs() (pasar millis(); 0 = compat previa,
+    // deja targetedAgeMs sin efecto). El default preserva la firma vieja de los consumidores.
+    void tick(uint32_t now_ms = 0);
     bool send(const uint8_t* data, uint8_t len);  // TX para telemetría/log-dump del host
 
     // Input expuesto (lo lee la estrategia de teleop en vez del singleton viejo).
@@ -41,6 +43,18 @@ public:
     bool     isFresh(uint32_t maxAgeMs = 300) const { return transport_.isFresh(maxAgeMs); }
     uint32_t dataAgeMs() const { return transport_.dataAgeMs(); }
 
+    // ── Frescura DIRIGIDA (spec 2026-07-11 D1) ─────────────────────────────────────────
+    // isFresh()/dataAgeMs() son del TRANSPORTE: se refrescan con CUALQUIER frame del canal
+    // (control a otro robot, config, telemetría ajena — todo es broadcast). Esto mide solo
+    // los ControlPacket que pasaron isForRobot() → "el mando me está controlando A MÍ".
+    // Requiere tick(now_ms) con tiempo real (millis()); con tick() legacy queda sin datos.
+    uint32_t targetedAgeMs(uint32_t now_ms) const {
+        return targeted_seen_ ? (now_ms - last_targeted_ms_) : UINT32_MAX;
+    }
+    bool isTargetedFresh(uint32_t now_ms, uint32_t maxAgeMs = 300) const {
+        return targetedAgeMs(now_ms) <= maxAgeMs;
+    }
+
 private:
     ILinkTransport& transport_;
     IEffectSink&    sink_;
@@ -50,6 +64,8 @@ private:
     ControlPacket    last_{};
     bool             seen_ = false;
     uint8_t          robot_id_ = ROBOT_ID_ALL;  // id de este robot (filtro de target)
+    uint32_t         last_targeted_ms_ = 0;     // millis del último ControlPacket PARA MÍ
+    bool             targeted_seen_ = false;    // hubo al menos uno (evita edad falsa en boot)
 };
 
 } // namespace input_control

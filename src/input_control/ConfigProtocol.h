@@ -22,6 +22,16 @@ constexpr uint8_t MSG_CONFIG_REQ     = 0x03;   // ConfigRequest (pedido de valor
 constexpr uint8_t CONFIG_SETTINGS_ID = 0xFF;   // strategy_id reservado = Ajustes globales
 constexpr uint8_t CONFIG_MAX_ITEMS   = 8;
 
+// ── Banda reservada 0xF0-0xFE: acciones EFÍMERAS (viajan como ConfigPacket pero NO se
+// persisten). Los robots deben IGNORAR los ids de esta banda que no manejen (no escribirlos
+// a NVS). Como ConfigPacket no tiene target propio, items[0].key = robot_id destino.
+constexpr uint8_t CONFIG_STRAT_CTRL  = 0xFD;      // activar estrategia (spec 2026-07-11 D1)
+                                                  //   items[0]={key: robot_id, value: strategy_id}
+constexpr uint8_t CONFIG_IDENTIFY    = 0xFC;      // "identify": el mando resalta este robot en el
+                                                  //   selector → parpadeo blanco ~2 s ("locate").
+                                                  //   items[0]={key: robot_id, value: 1}
+// 0xFE (control de modo test, V3) se define en los consumidores por razones históricas.
+
 #pragma pack(push, 1)
 struct ConfigItem { uint8_t key; int32_t value; };   // 5 bytes
 // Config rica mando→robot; el MISMO layout se usa robot→mando como reply/ACK (§4.4).
