@@ -1,6 +1,7 @@
 #include <unity.h>
 #include <input_control/led/LedModel.h>
 #include <input_control/led/LedAnimator.h>
+#include <input_control/led/LedTestModel.h>
 
 // Tabla semántica del LED unificado (spec 2026-07-11 §3): escalera de prioridad,
 // patrones por actividad y overlay de batería. UNA fuente de verdad para todos los robots.
@@ -83,6 +84,42 @@ void test_double_flash_shape() {
     TEST_ASSERT_TRUE(sameColor(sample(o, 1240), kAccent));    // período siguiente
 }
 
+// Secuencia canónica del test de conexión del LED RGB (spec 2026-07-14 D3/D5).
+void test_led_test_secuencia_pura() {
+    TEST_ASSERT_EQUAL_UINT8(5, LED_TEST_STEP_COUNT);
+    // Paso 0 = ROJO puro, 1 = VERDE puro, 2 = AZUL puro (canales exactos → un cruce es inambiguo)
+    TEST_ASSERT_EQUAL_UINT8(255, LED_TEST_STEPS[0].color.r);
+    TEST_ASSERT_EQUAL_UINT8(0,   LED_TEST_STEPS[0].color.g);
+    TEST_ASSERT_EQUAL_UINT8(0,   LED_TEST_STEPS[0].color.b);
+    TEST_ASSERT_EQUAL_UINT8(0,   LED_TEST_STEPS[1].color.r);
+    TEST_ASSERT_EQUAL_UINT8(255, LED_TEST_STEPS[1].color.g);
+    TEST_ASSERT_EQUAL_UINT8(0,   LED_TEST_STEPS[1].color.b);
+    TEST_ASSERT_EQUAL_UINT8(0,   LED_TEST_STEPS[2].color.r);
+    TEST_ASSERT_EQUAL_UINT8(0,   LED_TEST_STEPS[2].color.g);
+    TEST_ASSERT_EQUAL_UINT8(255, LED_TEST_STEPS[2].color.b);
+}
+void test_led_test_blanco_y_apagado() {
+    // BLANCO = los 3 canales >=128 (detecta canal muerto); APAGADO = los 3 en 0 (canal clavado)
+    TEST_ASSERT_TRUE(LED_TEST_STEPS[3].color.r >= 128);
+    TEST_ASSERT_TRUE(LED_TEST_STEPS[3].color.g >= 128);
+    TEST_ASSERT_TRUE(LED_TEST_STEPS[3].color.b >= 128);
+    TEST_ASSERT_EQUAL_UINT8(0, LED_TEST_STEPS[4].color.r);
+    TEST_ASSERT_EQUAL_UINT8(0, LED_TEST_STEPS[4].color.g);
+    TEST_ASSERT_EQUAL_UINT8(0, LED_TEST_STEPS[4].color.b);
+}
+void test_led_test_avance_con_wrap() {
+    TEST_ASSERT_EQUAL_UINT8(1, ledTestNextStep(0));
+    TEST_ASSERT_EQUAL_UINT8(4, ledTestNextStep(3));
+    TEST_ASSERT_EQUAL_UINT8(0, ledTestNextStep(4));   // wrap: APAGADO → ROJO
+}
+
+// byte0 del LedTestPayload = tool_id. Los wheel tests usan 0..4 en su byte0
+// (test_mode V3 / rueda V2): el id DEBE quedar fuera de ese rango.
+void test_led_test_tool_id_no_colisiona_con_wheel_tests() {
+    TEST_ASSERT_EQUAL_UINT8(7, LED_TEST_TOOL_ID);
+    TEST_ASSERT_TRUE(LED_TEST_TOOL_ID > 4);
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_estop_wins_over_everything);
@@ -91,5 +128,9 @@ int main(int, char**) {
     RUN_TEST(test_identify_overrides_standby);
     RUN_TEST(test_battery_overlay_flashes_over_base);
     RUN_TEST(test_double_flash_shape);
+    RUN_TEST(test_led_test_secuencia_pura);
+    RUN_TEST(test_led_test_blanco_y_apagado);
+    RUN_TEST(test_led_test_avance_con_wrap);
+    RUN_TEST(test_led_test_tool_id_no_colisiona_con_wheel_tests);
     return UNITY_END();
 }
