@@ -13,7 +13,7 @@
   "license": "MIT",
   "frameworks": "*",
   "platforms": "*",
-  "headers": ["input_control/InputControlModule.h", "input_control/ControlProtocol.h", "input_control/ConfigProtocol.h", "input_control/ConfigStore.h", "input_control/led/LedModel.h", "input_control/led/LedAnimator.h", "input_control/led/LedTestModel.h", "input_control/DeviceProtocol.h", "input_control/SeqFilter.h"],
+  "headers": ["input_control/InputControlModule.h", "input_control/ControlProtocol.h", "input_control/ConfigProtocol.h", "input_control/ConfigStore.h", "input_control/led/LedModel.h", "input_control/led/LedAnimator.h", "input_control/led/LedTestModel.h", "input_control/DeviceProtocol.h", "input_control/DeviceCounter.h", "input_control/crypto/ChaCha20Poly1305.h"],
   "export": {
     "exclude": [".pio", ".vscode", "test", "platformio.ini"]
   }

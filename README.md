@@ -54,23 +54,97 @@ build native con `#ifndef NATIVE_BUILD`.
 
 Además del enlace mando ↔ robot, la librería define una **segunda familia de paquetes**
 para lo que no es un robot: la consola de la sala, el receptor USB de la PC, el pedal y
-las luces. Se agregó **sin modificar** `ControlProtocol.h` ni `ConfigProtocol.h`: el mando
-y los robots siguen en sus tags y no hay que recargarlos.
+las luces. Van **cifrados y autenticados**. Se agregó **sin modificar**
+`ControlProtocol.h` ni `ConfigProtocol.h`: el mando y los robots siguen en sus tags y no
+hay que recargarlos. El enlace mando ↔ robot sigue sin cifrar.
 
 | Pieza | Archivo | Rol |
 |---|---|---|
-| Familia nueva | `DeviceProtocol.h` | cabecera común de 6 B (`magic`, `version`, `type`, `source`, `target`, `seq`), `LightCommandPacket` (11 B) y `EventPacket` (8 B) |
-| Repeticiones | `SeqFilter.h` | descarta el mismo `(source, seq)` dentro de una ventana; la difusión no confirma entrega y el emisor repite |
+| Familia nueva | `DeviceProtocol.h` | formato del cable, `sealFrame` / `receiveFrame`, y los mensajes `LightCommand`, `Event` e `InputState` |
+| Contador | `DeviceCounter.h` | `TxCounter` (emisor) y `ReplayGuard` (receptor): nonce único y descarte de copias y reenvíos |
+| Cifrado | `crypto/ChaCha20Poly1305.h` | AEAD de la RFC 8439, sin dependencias, igual en ESP32, ESP8266 y la PC |
 
-Reglas que fijan los tests (`test/test_device`, `test/test_seqfilter`):
+### Formato en el aire
 
-- Todo paquete de la familia empieza con `DEV_MAGIC` (0x4C), que no es el primer byte de
-  ningún paquete del enlace mando ↔ robot. Cada lado descarta los del otro.
-- Los paquetes nuevos se distinguen por `type`, no por tamaño.
+| Bytes | Campo | |
+|---|---|---|
+| 0 | `magic` | 0x4C. No es el primer byte de ningún paquete del enlace mando ↔ robot |
+| 1 | `version` | 2. La 1 fue el borrador sin cifrar y no se acepta |
+| 2 | `type` | `DevMsg` |
+| 3 | `source` | `DeviceId` de quien emite |
+| 4 | `target` | `DeviceId` destino, o 0 para todos |
+| 5 a 8 | `epoch` | uint32 little-endian |
+| 9 a 12 | `seq` | uint32 little-endian |
+| 13 en adelante | carga | cifrada, hasta 35 bytes |
+| últimos 16 | etiqueta | cubre la cabecera y la carga |
+
+La cabecera va en claro pero autenticada. El paquete más largo mide 64 bytes, que es lo
+que acepta `EspNowTransport`.
+
+### Uso
+
+Emisor: un solo `TxCounter` por dispositivo, creado con la época de este arranque.
+
+```cpp
+TxCounter tx(epoch);                       // epoch: leída de memoria permanente, +1, guardada
+DevCounter c;
+if (tx.next(c)) {
+    uint8_t frame[DEV_MAX_FRAME];
+    uint8_t n = sealLightCommand(KEY, (uint8_t)DeviceId::Console, (uint8_t)DeviceId::Lights,
+                                 c, LightCommand{LightCmd::Power, 0, 0, 0, 2}, frame, sizeof(frame));
+    for (int i = 0; i < 3; ++i) transport.send(frame, n);   // el MISMO paquete, repetido
+}
+```
+
+Receptor: siempre `receiveFrame`, que verifica y recién después descarta copias.
+
+```cpp
+ReplayGuard guard;
+DevHeader h; uint8_t payload[DEV_MAX_PAYLOAD]; uint8_t len;
+if (receiveFrame(KEY, guard, data, n, h, payload, sizeof(payload), len) && isForDevice(h, MY_ID)) {
+    LightCommand cmd;
+    if (decodeLightCommand(h, payload, len, cmd)) { /* aplicar */ }
+}
+```
+
+### La clave
+
+32 bytes al azar, los mismos en todos los dispositivos de la sala. **No va en esta
+librería ni en git**: cada firmware la incluye desde un archivo ignorado. Para generarla:
+
+```
+py -c "import secrets; print(', '.join(f'0x{b:02x}' for b in secrets.token_bytes(32)))"
+```
+
+### Reglas
+
+- Cada dispositivo tiene un `DeviceId` único y un solo `TxCounter`. El nonce es
+  `(source, epoch, seq)`: repetirlo con la misma clave rompe el cifrado.
+- La época se guarda en memoria permanente y se incrementa una vez por arranque, antes
+  de emitir. Si esa memoria se borra, hay que cambiar la clave de toda la sala.
 - Los ids de dispositivo arrancan en 16; del 1 al 15 son de robots (`RobotId`).
 - La sala usa `DEV_CHANNEL` (6), distinto del canal de los robots (1).
-- La consola manda sus teclas, faders y perilla con el **`ControlPacket` de siempre**,
-  con `target_robot_id = DeviceId::Receiver`.
+- Los valores de `DevMsg` y `LightCmd` viajan por el aire: no se renumeran.
 
-Pendiente en esta rama: transporte para ESP8266 (las luces) y el paquete de estado de la
-PC hacia la consola.
+### Verificación
+
+`test/test_crypto` usa los vectores oficiales de la RFC 8439 (§2.3.2, §2.5.2, §2.8.2 y los
+casos límite A.3 #5 a #10). `test/test_device` incluye un paquete calculado con otra
+implementación (Python `cryptography`) y prueba que cambiar un bit en cualquier byte lo
+invalida.
+
+### Límites
+
+- Se ve **quién** habla con **quién**, de qué tipo es el mensaje y cuándo. Sólo la carga
+  va cifrada.
+- La clave es una sola. Quien tenga en la mano cualquier dispositivo puede leerla del
+  flash, que no está cifrado, y con eso leer y emitir todo.
+- Un receptor recién reiniciado olvidó los contadores: hasta que le llegue un paquete
+  legítimo de una fuente, acepta uno grabado antes de esa fuente.
+- `ReplayGuard` recuerda 8 fuentes; con más, olvida a la que hace más que no habla.
+- No protege de interferencia: alguien puede tapar la radio.
+- La implementación del cifrado coincide con la norma en los vectores, pero no fue
+  auditada por terceros.
+
+Pendiente en esta rama: transporte para ESP8266 (las luces), el paquete de estado de la
+PC hacia la consola, y guardar la época en cada firmware.
