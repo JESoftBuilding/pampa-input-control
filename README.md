@@ -49,3 +49,28 @@ build native con `#ifndef NATIVE_BUILD`.
 2. Mover los tests native del módulo.
 3. `platformio.ini` con env `native` para CI de la propia librería.
 4. Tag `v1.0.0` y repuntar `lib_deps` de mando + V3; luego sumar V2.
+
+## Protocolo de dispositivos (desde 2.7.0, rama `feature/device-protocol`)
+
+Además del enlace mando ↔ robot, la librería define una **segunda familia de paquetes**
+para lo que no es un robot: la consola de la sala, el receptor USB de la PC, el pedal y
+las luces. Se agregó **sin modificar** `ControlProtocol.h` ni `ConfigProtocol.h`: el mando
+y los robots siguen en sus tags y no hay que recargarlos.
+
+| Pieza | Archivo | Rol |
+|---|---|---|
+| Familia nueva | `DeviceProtocol.h` | cabecera común de 6 B (`magic`, `version`, `type`, `source`, `target`, `seq`), `LightCommandPacket` (11 B) y `EventPacket` (8 B) |
+| Repeticiones | `SeqFilter.h` | descarta el mismo `(source, seq)` dentro de una ventana; la difusión no confirma entrega y el emisor repite |
+
+Reglas que fijan los tests (`test/test_device`, `test/test_seqfilter`):
+
+- Todo paquete de la familia empieza con `DEV_MAGIC` (0x4C), que no es el primer byte de
+  ningún paquete del enlace mando ↔ robot. Cada lado descarta los del otro.
+- Los paquetes nuevos se distinguen por `type`, no por tamaño.
+- Los ids de dispositivo arrancan en 16; del 1 al 15 son de robots (`RobotId`).
+- La sala usa `DEV_CHANNEL` (6), distinto del canal de los robots (1).
+- La consola manda sus teclas, faders y perilla con el **`ControlPacket` de siempre**,
+  con `target_robot_id = DeviceId::Receiver`.
+
+Pendiente en esta rama: transporte para ESP8266 (las luces) y el paquete de estado de la
+PC hacia la consola.
