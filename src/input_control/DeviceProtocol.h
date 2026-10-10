@@ -69,6 +69,9 @@ enum class DeviceId : uint8_t {
     Console  = 17,   // la consola de teclas, perilla y pantalla
     Pedal    = 18,
     Lights   = 19,   // controlador de la tira RGB (luces-rgb)
+    // Emisor de pruebas de luces-rgb. Id propio y no el de la consola: el nonce incluye
+    // el origen, y dos emisores con el mismo id y la misma clave pueden repetirlo.
+    TestEmitter = 30,
 };
 
 // Tipo de mensaje. Los valores viajan por el aire: no se renumeran.

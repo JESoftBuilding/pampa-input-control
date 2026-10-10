@@ -369,7 +369,7 @@ void test_device_decoder_ignores_control_packet() {
 }
 // Los ids de dispositivo no pisan los de robot (1..15).
 void test_device_ids_do_not_overlap_robot_ids() {
-    for (uint8_t id : {RECEIVER, CONSOLE, PEDAL, LIGHTS}) TEST_ASSERT_TRUE(id >= 16);
+    for (uint8_t id : {RECEIVER, CONSOLE, PEDAL, LIGHTS, (uint8_t)DeviceId::TestEmitter}) TEST_ASSERT_TRUE(id >= 16);
     TEST_ASSERT_TRUE((uint8_t)RobotId::PampaV3 < 16);
     TEST_ASSERT_TRUE((uint8_t)RobotId::PampaV2 < 16);
     TEST_ASSERT_TRUE((uint8_t)RobotId::PampaV2S3 < 16);
