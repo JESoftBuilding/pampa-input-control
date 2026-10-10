@@ -13,8 +13,8 @@ namespace input_control {
 // en send(). Diferencia: cachea los bytes del frame crudo (no un ControlPacket tipado),
 // y receive() devuelve true una sola vez por frame (flag has_new_).
 //
-// Solo compilado en ESP32 — excluido de la plataforma native via #ifndef NATIVE_BUILD
-// en el .cpp correspondiente.
+// Solo compilado en ESP32 — excluido de native (NATIVE_BUILD) y de ESP8266
+// (ARDUINO_ARCH_ESP8266, que usa Esp8266NowTransport) en el .cpp correspondiente.
 class EspNowTransport : public ILinkTransport {
 public:
     static EspNowTransport& instance();

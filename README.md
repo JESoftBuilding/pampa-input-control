@@ -63,6 +63,7 @@ hay que recargarlos. El enlace mando ↔ robot sigue sin cifrar.
 | Familia nueva | `DeviceProtocol.h` | formato del cable, `sealFrame` / `receiveFrame`, y los mensajes `LightCommand`, `Event` e `InputState` |
 | Contador | `DeviceCounter.h` | `TxCounter` (emisor) y `ReplayGuard` (receptor): nonce único y descarte de copias y reenvíos |
 | Cifrado | `crypto/ChaCha20Poly1305.h` | AEAD de la RFC 8439, sin dependencias, igual en ESP32, ESP8266 y la PC |
+| Transporte ESP8266 | `Esp8266NowTransport.h/.cpp` | `ILinkTransport` sobre ESP-NOW con la API de ESP8266. `EspNowTransport` sigue siendo el de ESP32 y no cambió; cada uno se compila sólo en su plataforma |
 
 ### Formato en el aire
 
@@ -146,5 +147,5 @@ invalida.
 - La implementación del cifrado coincide con la norma en los vectores, pero no fue
   auditada por terceros.
 
-Pendiente en esta rama: transporte para ESP8266 (las luces), el paquete de estado de la
-PC hacia la consola, y guardar la época en cada firmware.
+Pendiente en esta rama: el paquete de estado de la PC hacia la consola, y guardar la
+época en cada firmware que emite.

@@ -1,11 +1,12 @@
 // EspNowTransport.cpp — ILinkTransport sobre ESP-NOW.
 //
 // NOTA: Este archivo usa cabeceras Arduino/WiFi/esp_now que no existen en la
-// plataforma native. Toda la implementación está envuelta en #ifndef NATIVE_BUILD
+// plataforma native ni en ESP8266. Toda la implementación está envuelta en el #if de abajo
 // para que `pio test -e native` siga compilando sin errores.
-// El env:native define -DNATIVE_BUILD en build_flags de platformio.ini.
+// El env:native define -DNATIVE_BUILD en build_flags de platformio.ini. En ESP8266 se usa
+// Esp8266NowTransport; para ESP32 nada cambia: esa macro no está definida.
 
-#ifndef NATIVE_BUILD
+#if !defined(NATIVE_BUILD) && !defined(ARDUINO_ARCH_ESP8266)
 
 #include "EspNowTransport.h"
 #include <Arduino.h>
@@ -107,4 +108,4 @@ uint32_t EspNowTransport::dataAgeMs() const {
 
 } // namespace input_control
 
-#endif // NATIVE_BUILD
+#endif // !NATIVE_BUILD && !ARDUINO_ARCH_ESP8266
