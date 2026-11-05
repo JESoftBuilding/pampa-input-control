@@ -79,6 +79,7 @@ enum class DevMsg : uint8_t {
     LightCommand = 0x10,
     Event        = 0x20,
     InputState   = 0x30,
+    WireFrame    = 0x50,   // una línea del cable de la consola, ver sealWireFrame
 };
 
 // Cabecera ya decodificada (no es el layout del cable: se serializa byte a byte).
@@ -277,6 +278,32 @@ inline bool decodeInputState(const DevHeader& h, const uint8_t* payload, uint8_t
     out.ry        = (int8_t)payload[5];
     out.nav_flags = payload[6];
     out.nav_delta = (int8_t)payload[7];
+    return true;
+}
+
+// Trama del cable: lleva una línea del cable de la consola (la del puerto serie) por el
+// aire. Carga = [tipo interno][datos]; el tipo interno es el de la línea, no un DevMsg.
+constexpr uint8_t DEV_WIRE_MAX_DATA = DEV_MAX_PAYLOAD - 1;   // 34: un byte va al tipo interno
+
+// 0 si los datos no entran: quien llama descarta la línea entera, nunca la corta.
+inline uint8_t sealWireFrame(const uint8_t key[DEV_KEY_LEN], uint8_t source, uint8_t target,
+                             const DevCounter& counter, uint8_t inner_type,
+                             const uint8_t* data, uint8_t data_len,
+                             uint8_t* out, uint8_t out_cap) {
+    if (data_len > DEV_WIRE_MAX_DATA) return 0;
+    uint8_t raw[DEV_MAX_PAYLOAD];
+    raw[0] = inner_type;
+    if (data_len) std::memcpy(raw + 1, data, data_len);
+    return sealFrame(key, DevMsg::WireFrame, source, target, counter, raw,
+                     (uint8_t)(data_len + 1), out, out_cap);
+}
+// `data` apunta dentro de `payload`: vale mientras viva ese búfer.
+inline bool decodeWireFrame(const DevHeader& h, const uint8_t* payload, uint8_t payload_len,
+                            uint8_t& inner_type, const uint8_t*& data, uint8_t& data_len) {
+    if (h.type != static_cast<uint8_t>(DevMsg::WireFrame) || payload_len < 1) return false;
+    inner_type = payload[0];
+    data       = payload + 1;
+    data_len   = (uint8_t)(payload_len - 1);
     return true;
 }
 

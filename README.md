@@ -60,7 +60,7 @@ hay que recargarlos. El enlace mando ↔ robot sigue sin cifrar.
 
 | Pieza | Archivo | Rol |
 |---|---|---|
-| Familia nueva | `DeviceProtocol.h` | formato del cable, `sealFrame` / `receiveFrame`, y los mensajes `LightCommand`, `Event` e `InputState` |
+| Familia nueva | `DeviceProtocol.h` | formato del cable, `sealFrame` / `receiveFrame`, y los mensajes `LightCommand`, `Event`, `InputState` y `WireFrame` |
 | Contador | `DeviceCounter.h` | `TxCounter` (emisor) y `ReplayGuard` (receptor): nonce único y descarte de copias y reenvíos |
 | Cifrado | `crypto/ChaCha20Poly1305.h` | AEAD de la RFC 8439, sin dependencias, igual en ESP32, ESP8266 y la PC |
 | Transporte ESP8266 | `Esp8266NowTransport.h/.cpp` | `ILinkTransport` sobre ESP-NOW con la API de ESP8266. `EspNowTransport` sigue siendo el de ESP32 y no cambió; cada uno se compila sólo en su plataforma |
@@ -81,6 +81,15 @@ hay que recargarlos. El enlace mando ↔ robot sigue sin cifrar.
 
 La cabecera va en claro pero autenticada. El paquete más largo mide 64 bytes, que es lo
 que acepta `EspNowTransport`.
+
+### La trama del cable (`WireFrame`, 0x50)
+
+Lleva por el aire una línea cualquiera del cable de la consola (la que va por el puerto
+serie), sin que la librería conozca sus tipos. La carga es `[tipo interno][datos]`: el
+tipo interno es el de la línea, no un `DevMsg`, y los datos van de 0 a
+`DEV_WIRE_MAX_DATA` (34) bytes, porque la carga entera llega a 35. Con más,
+`sealWireFrame` devuelve 0 y la línea se descarta entera: no se corta.
+`decodeWireFrame` rechaza otro tipo de mensaje y una carga sin el tipo interno.
 
 ### Uso
 
